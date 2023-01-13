@@ -21,11 +21,13 @@ int iLastLine = -1;
   return symbolname;
 
 char *_strCppBlock;
+char *_strPreProc;
 
 %}
 
 %x COMMENT
 %x CPPBLOCK
+%x PREPROC
 
 DIGIT		[0-9]
 HEXDIGIT [0-9A-Fa-f]
@@ -65,9 +67,11 @@ EXP_FLT (({DIGIT}+("."({DIGIT}*)?)?)("E"|"e")("+"|"-")?{DIGIT}+)
 "uses"      {RETURN(k_uses);}
 "export"    {RETURN(k_export);}
 
-"texture" {RETURN(k_texture);}
-"sound"   {RETURN(k_sound);}
-"model"   {RETURN(k_model);}
+"texture"   {RETURN(k_texture);}
+"sound"     {RETURN(k_sound);}
+"model"     {RETURN(k_model);}
+"skamodel"  {RETURN(k_skamodel);}
+"editor"    {RETURN(k_editor);}
 
 "properties"  {RETURN(k_properties);}
 "components"  {RETURN(k_components);}
@@ -144,6 +148,25 @@ EXP_FLT (({DIGIT}+("."({DIGIT}*)?)?)("E"|"e")("+"|"-")?{DIGIT}+)
  }
 <CPPBLOCK>.*   {
   _strCppBlock = (SType(_strCppBlock)+yytext).strString;
+}
+
+ /* special handling for preprocessor directives */
+"#" {
+  char strLine[512];
+  sprintf(strLine, "#line %d \"%s\"\n#", _iLinesCt, _strInputFileName );
+  _strPreProc = strdup(strLine);
+  BEGIN(PREPROC);
+}
+<PREPROC>\n {
+  BEGIN(INITIAL);
+  _iLinesCt++;
+  _strPreProc = (SType(_strPreProc)+yytext).strString;
+  fprintf(_fDeclaration, "%s", _strPreProc);
+  fprintf(_fTables, "%s", _strPreProc);
+  fprintf(_fImplementation, "%s", _strPreProc);
+}
+<PREPROC>.*   {
+  _strPreProc = (SType(_strPreProc)+yytext).strString;
 }
 
  /* eat up comments */
